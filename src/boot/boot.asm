@@ -3,30 +3,37 @@ global start
 section .text
 bits 32
 
-load_page_table:
-    ; move page table address to cr3
-    mov eax, p4_table
-    mov cr3, eax
+setup_page_table:
+    ; Point the first entry of the level 4 page table to the first entry in the
+    ; p3 table
+    mov eax, p3_table
+    or eax, 0b11
+    mov dword [p4_table], eax
 
-    ; enable PAE
-    mov eax, cr4
-    or eax, 1 << 5
-    mov cr4, eax
+    ; Point the first entry of the level 3 page table to the first entry in the
+    ; p2 table
+    mov eax, p2_table
+    or eax, 0b11
+    mov dword [p3_table], eax
 
-    ; set the long mode bit
-    mov ecx, 0xC0000080
-    rdmsr
-    or eax, 1 << 8
-    wrmsr
+    ; point each page table level two entry to a page
+    mov ecx, 0         ; counter variable
+.map_p2_table:
+    mov eax, 0x200000  ; 2MiB
+    mul ecx
+    or eax, 0b10000011
+    mov [p2_table + ecx * 8], eax
 
-    ; enable paging
-    mov eax, cr0
-    or eax, 1 << 31
-    or eax, 1 << 16
-    mov cr0, eax
+    inc ecx
+    cmp ecx, 512
+    jne .map_p2_table
     return
 
-start:
+enable_paging:
+
+    return
+
+load_message:
     mov word [0xb8000], 0x0E54 ; T
     mov word [0xb8002], 0x0E49 ; I
     mov word [0xb8004], 0x0E4E ; N
@@ -36,7 +43,11 @@ start:
     mov word [0xb800c], 0x0E20 ;
     mov word [0xb800e], 0x0E4F ; O
     mov word [0xb8010], 0x0E53 ; S
-    call load_page_table
+
+start:
+    call load_message
+    call setup_page_table
+    call enable_paging
 
     hlt
 
