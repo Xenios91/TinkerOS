@@ -1,2 +1,2 @@
-# RustOS
+# TinkerOS
 Simple Rust OS
